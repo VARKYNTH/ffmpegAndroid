@@ -1,0 +1,61 @@
+name: Build FFmpeg for Android
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    env:
+      NDK_VERSION: r28c
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Install build tools and Yasm
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y build-essential meson ninja-build nasm pkg-config autoconf
+
+    - name: Set up Android NDK
+      id: setup-ndk
+      uses: nttld/setup-ndk@v1
+      with:
+        ndk-version: ${{ env.NDK_VERSION }}
+        add-to-path: true
+
+    - name: Set environment variables
+      run: |
+        echo "ANDROID_NDK_PATH=${ANDROID_NDK_HOME}" >> $GITHUB_ENV
+
+    - name: Make .sh files executable
+      run: |
+        chmod +x ./android.sh
+      
+    - name: Clone latest FFmpeg
+      run: |
+        git clone https://github.com/FFmpeg/FFmpeg.git ffmpeg
+        echo "FFMPEG_SOURCE_DIR=$GITHUB_WORKSPACE/ffmpeg" >> $GITHUB_ENV
+
+    - name: Create build directory
+      run: |
+        mkdir -p ffmpeg-build
+        echo "FFMPEG_BUILD_DIR=$GITHUB_WORKSPACE/ffmpeg-build" >> $GITHUB_ENV
+
+    - name: Run build script
+      run: |
+        set -e
+        ./android.sh
+
+
+    - name: Upload FFmpeg build artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: ffmpeg-android-build
+        path: ffmpeg-build/
